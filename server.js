@@ -82,6 +82,33 @@ const server = net.createServer((client) => {
 
       // --- 2) Username/Password Authentication (RFC 1929)
       // auth request: VER(0x01), ULEN, UNAME, PLEN, PASSWD
+      const authHead = await readBytes(2);
+      if (authHead[0] !== 0x01) {
+        console.log(`Invalid auth version from ${clientId}: ${authHead[0]}`);
+        client.end();
+        return;
+      }
+
+      const ulen = authHead[1];
+      const unameBuf = await readBytes(ulen);
+      const uname = unameBuf.toString("utf8");
+
+      const plenBuf = await readBytes(1);
+      const plen = plenBuf[0];
+      const passwdBuf = await readBytes(plen);
+      const passwd = passwdBuf.toString("utf8");
+
+      const authOk = uname === AUTH_USER && passwd === AUTH_PASS;
+      client.write(Buffer.from([0x01, authOk ? 0x00 : 0x01]));
+      if (!authOk) {
+        console.log(`[AUTH FAIL] ${clientId} -> (${uname})`);
+        client.end();
+        return;
+      }
+      console.log(`[AUTH_OK] ${clientId} as "${uname}"`);
+
+      // --- 3) Request: VER, CMD, RSV, ATYP, DST.ADDR, DST.PORT
+      // First read 4 bytes header
     } catch (error) {}
   };
 });

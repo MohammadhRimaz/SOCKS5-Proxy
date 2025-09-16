@@ -109,6 +109,59 @@ const server = net.createServer((client) => {
 
       // --- 3) Request: VER, CMD, RSV, ATYP, DST.ADDR, DST.PORT
       // First read 4 bytes header
+      const reqHeader = await readBytes(4);
+      const ver = reqHeader[0],
+        cmd = reqHeader[1],
+        rsv = reqHeader[2],
+        atyp = reqHeader[3];
+      if (ver !== 0x05) {
+        console.log(`Invalid request version from ${clientId}: ${ver}`);
+        client.end();
+        return;
+      }
+      if (cmd !== 0x01) {
+        // we only support CONNECT (0x01)
+        console.log(`Unsupported CMD (${cmd}) from ${clientId}`);
+        sendReply(0x07); // Command not supported
+        client.end();
+        return;
+      }
+
+      let destAddr = null;
+      let destPort = null;
+
+      if (atyp === 0x01) {
+        // IPv4
+        const addrPort = await readBytes(6); // 4 bytes IP + 2 bytes port
+        destAddr = Array.from(addrPort.slice(0, 4)).join(".");
+        destPort = addrPort.readUInt16BE(4);
+      } else if (atyp === 0x03) {
+        // Domain name
+        const lenBuf = await readBytes(1);
+        const dlen = lenBuf[0];
+        const domainAndPort = await readBytes(dlen + 2);
+        destAddr = domainAndPort.slice(0, dlen).toString("utf8");
+        destPort = domainAndPort.readUInt16BE(dlen);
+      } else if (atyp === 0x04) {
+        // IPv6 (support minimally)
+        const addrPort = await readBytes(16 + 2);
+        const addrBuf = addrPort.slice(0, 16);
+        // format IPv6 from buffer (simple hex groups)
+        const groups = [];
+        for (let i = 0; i < 16; i += 2) {
+          groups.push(addrBuf.readUInt16BE(i).toString(16));
+        }
+        destAddr = groups.join(":");
+        destPort = addrPort.readUInt16BE(16);
+      } else {
+        sendReply(0x08); // address type not supported
+        client.end();
+        return;
+      }
+
+      console.log(`[CONNECT] ${clientId} -> ${destAddr}:${destPort}`);
+
+      // --- 4) Connect to destination and tunnel
     } catch (error) {}
   };
 });

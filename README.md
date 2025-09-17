@@ -31,7 +31,7 @@ curl -x socks5h://youruser:yourpasswd@127.0.0.1:1080 https://ipinfo.io/json
 Server prints connection logs such as:
 
 ```bash
-[AUTH_OK] ::ffff:127.0.0.1:58442 as "test"
+[AUTH_OK] ::ffff:127.0.0.1:58442 as "youruser"
 [CONNECT] ::ffff:127.0.0.1:58442 -> ipinfo.io:443
 ```
 

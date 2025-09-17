@@ -39,4 +39,4 @@ Server prints connection logs such as:
 
 - Implemented handshake, RFC1929 username/password, CONNECT tunneling using Node `net`.
 - Debugging: added stepwise logs and a `readBytes` helper to handle partial TCP frames.
-- Improvements (if more time): UDP ASSOCIATE, TLS between client/proxy, config file, unit tests, connection throttling.
+- Improvements (if more time): UDP ASSOCIATE, TLS between client/proxy, unit tests, connection throttling.

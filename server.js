@@ -55,7 +55,7 @@ const server = net.createServer((client) => {
     client.write(reply);
   }
 
-  async () => {
+  (async () => {
     try {
       // --- 1) SOCKS5 greeting: VER, NMETHODS
       const hdr = await readBytes(2);
@@ -162,6 +162,46 @@ const server = net.createServer((client) => {
       console.log(`[CONNECT] ${clientId} -> ${destAddr}:${destPort}`);
 
       // --- 4) Connect to destination and tunnel
-    } catch (error) {}
-  };
+      const remote = net.createConnection(destPort, destAddr);
+
+      remote.on("connect", () => {
+        // success
+        sendReply(0x00); // succeeded
+        // If leftover has any bytes (rare),forward them
+        if (leftover.length > 0) {
+          remote.write(leftover);
+          leftover = Buffer.alloc(0);
+        }
+        // pipe both ways
+        client.pipe(remote);
+        remote.pipe(client);
+      });
+
+      remote.on("error", (err) => {
+        console.log(
+          `[REMOTE ERROR] ${clientId} -> ${destAddr}:${destPort} : ${err.message}`
+        );
+        sendReply(0x05); // Connection refused or general failure
+        client.end();
+      });
+
+      // close peers on end
+      client.on("close", () => remote.end());
+      remote.on("close", () => client.end());
+    } catch (error) {
+      console.log(`[ERROR] ${clientId} : ${error.message}`);
+      try {
+        client.end();
+      } catch (e) {}
+    }
+  })();
+});
+
+server.on("error", (err) => {
+  console.error("Server error:", err);
+});
+
+server.listen(PORT, () => {
+  console.log(`SOCKS5 proxy listening on port ${PORT}`);
+  console.log(`Auth user: "${AUTH_USER}"`);
 });
